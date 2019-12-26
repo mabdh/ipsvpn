@@ -162,6 +162,7 @@ kvclear() {
 
 ####
 
+_ipsvpn_config_dir=~/.config/ipsvpn
 ALIASNAME=$1
 USERNAME=$(cat $_ipsvpn_config_dir/username)
 secret_key=$(security find-generic-password -a ipsvpn -w 2>/dev/null | tr -d '\n')
@@ -175,4 +176,11 @@ echo $USERNAME : EAP "$password" > /usr/local/var/lib/strongswan/ipsec.secrets.i
 ipsec rereadsecrets
 # . alias.sh
 VPNNAME=$(kvget $ALIASNAME)
-ipsec up $VPNNAME
+if [ -z "$VPNNAME" ]
+then
+  echo "Cannot find the key-value alias VPN name, make sure you add the key-value using \'ipsvpn-setup -s alias-name vpn-name\'"
+else
+  ipsec up $VPNNAME
+fi
+
+(($? != 0)) && { printf '%s\n' "Cannot start VPN, make sure ipsec is started by running 'sudo ipsec start'"; exit 1; }
