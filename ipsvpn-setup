@@ -221,12 +221,6 @@ function _ipsvpn_init() {
   security delete-generic-password -a ipsvpn -s ipsvpn &>/dev/null
   security add-generic-password -a ipsvpn -p "$secret_key" -s ipsvpn
 
-  echo -n "Add your user name VPN: ";
-  read;
-  echo ${REPLY} > $_ipsvpn_config_dir/username
-  echo "User name ${REPLY} added"
-
-
   # config files & folder
   mkdir -p "$(brew --prefix)/var/lib/strongswan" && touch "$(brew --prefix)/var/lib/strongswan/ipsec.secrets.inc"
   
@@ -298,6 +292,10 @@ function ipsvpn_setup() {
   fi
 
   if [ ! -f $_ipsvpn_config_dir/username ]; then
+    echo -n "Add your user name VPN: ";
+    read;
+    echo ${REPLY} > $_ipsvpn_config_dir/username
+    echo "User name ${REPLY} added"
     _ipsvpn_init
   fi
 
