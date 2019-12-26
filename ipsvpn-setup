@@ -41,7 +41,7 @@
 # CONSTANTS
 ########################
 
-KV_USER_DIR="$HOME/.config/ipsvpn"
+KV_USER_DIR="$HOME/.config/ipsvpn/kv-store"
 
 ########################
 # LOCAL FUNCTIONS
