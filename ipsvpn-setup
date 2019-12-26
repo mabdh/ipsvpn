@@ -211,15 +211,15 @@ function _replace_vpn(){
 }
 
 function _ipsvpn_init() {
-  # echo -n "Add your Secret Key: "
-  # read -s secret_key
-  # echo "**********"
+  echo -n "Add your Secret Key: "
+  read -s secret_key
+  echo "**********"
 
-  # echo 'Storing secret in keychain...'
-  # old_secret=~/.config/ipsvpn/secret
-  # [ -f "$old_secret" ] && rm "$old_secret"
-  # security delete-generic-password -a ipsvpn -s ipsvpn &>/dev/null
-  # security add-generic-password -a ipsvpn -p "$secret_key" -s ipsvpn
+  echo 'Storing secret in keychain...'
+  old_secret=~/.config/ipsvpn/secret
+  [ -f "$old_secret" ] && rm "$old_secret"
+  security delete-generic-password -a ipsvpn -s ipsvpn &>/dev/null
+  security add-generic-password -a ipsvpn -p "$secret_key" -s ipsvpn
 
   # config files & folder
   mkdir -p "$(brew --prefix)/var/lib/strongswan" && touch "$(brew --prefix)/var/lib/strongswan/ipsec.secrets.inc"
@@ -234,28 +234,9 @@ function _ipsvpn_init() {
     echo "include /usr/local/var/lib/strongswan/ipsec.secrets.inc" | tee -a "$(brew --prefix)/etc/ipsec.secrets"
   fi
 
-
-  # _ipsvpn_refresh
-
   echo -e "\nSecret Key Added."
   exit
 }
-
-# function _ipsvpn_refresh() {
-#   local backup_file=/tmp/ipsvpn-$(date +%-H-%M-%S-%F)
-#   [ -f $_ipsvpn_config_dir/vpns ] && cp $_ipsvpn_config_dir/vpns $backup_file
-#   vpnlist=$(cat $CONFIG_FILE_PATH | /usr/bin/awk '{print $0;}' | grep -A1 RemoteAddress | grep string | cut -f 2 -d\> | cut -f 1 -d\< | tr ' ' _ | sed 's/^[[:space:]]//g')
-#   #  >$_ipsvpn_config_dir/vpns
-#   echo $vpnlist
-
-#   echo "Storing the VPN list..."
-#   if [ -f $backup_file ]; then
-#     echo -e "\nDiff:\n$(diff -y $backup_file $_ipsvpn_config_dir/vpns)"
-#   else
-#     echo -e "\nVPN List:"
-#     cat $_ipsvpn_config_dir/vpns | nl
-#   fi
-# }
 
 function _ipsvpn_usage() {
 cat <<EOF
@@ -298,9 +279,9 @@ function ipsvpn_setup() {
     exit 1
   fi
 
-  # if [ ! -f $_ipsvpn_config_dir/vpns ]; then
-  #   _ipsvpn_init
-  # fi
+  if [ ! -f $_ipsvpn_config_dir/vpns ]; then
+    _ipsvpn_init
+  fi
 
   while getopts "ihsluyr" opt; do
     case $opt in
