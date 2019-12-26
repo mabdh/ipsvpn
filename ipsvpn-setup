@@ -211,29 +211,33 @@ function _replace_vpn(){
 }
 
 function _ipsvpn_init() {
-  echo -n "Add your Secret Key: "
-  read -s secret_key
-  echo "**********"
+  # echo -n "Add your Secret Key: "
+  # read -s secret_key
+  # echo "**********"
 
-  echo 'Storing secret in keychain...'
-  old_secret=~/.config/ipsvpn/secret
-  [ -f "$old_secret" ] && rm "$old_secret"
-  security delete-generic-password -a ipsvpn -s ipsvpn &>/dev/null
-  security add-generic-password -a ipsvpn -p "$secret_key" -s ipsvpn
+  # echo 'Storing secret in keychain...'
+  # old_secret=~/.config/ipsvpn/secret
+  # [ -f "$old_secret" ] && rm "$old_secret"
+  # security delete-generic-password -a ipsvpn -s ipsvpn &>/dev/null
+  # security add-generic-password -a ipsvpn -p "$secret_key" -s ipsvpn
 
-  # config files & folder
-  mkdir -p "$(brew --prefix)/var/lib/strongswan" && touch "$(brew --prefix)/var/lib/strongswan/ipsec.secrets.inc"
+  # # config files & folder
+  # mkdir -p "$(brew --prefix)/var/lib/strongswan" && touch "$(brew --prefix)/var/lib/strongswan/ipsec.secrets.inc"
   
-  if ! $(grep -Fxq "conn company" "$(brew --prefix)/etc/ipsec.conf")
-  then
-    _cat_conf | tee -a "$(brew --prefix)/etc/ipsec.conf"
-  fi
+  # if ! $(grep -Fxq "conn company" "$(brew --prefix)/etc/ipsec.conf")
+  # then
+  #   _cat_conf | tee -a "$(brew --prefix)/etc/ipsec.conf"
+  # fi
 
-  if ! $(grep -Fxq "include /usr/local/var/lib/strongswan/ipsec.secrets.inc" "$(brew --prefix)/etc/ipsec.secrets")
-  then
-    echo "include /usr/local/var/lib/strongswan/ipsec.secrets.inc" | tee -a "$(brew --prefix)/etc/ipsec.secrets"
-  fi
+  # if ! $(grep -Fxq "include /usr/local/var/lib/strongswan/ipsec.secrets.inc" "$(brew --prefix)/etc/ipsec.secrets")
+  # then
+  #   echo "include /usr/local/var/lib/strongswan/ipsec.secrets.inc" | tee -a "$(brew --prefix)/etc/ipsec.secrets"
+  # fi
 
+  echo -n "Add your user name VPN: ";
+  read;
+  echo ${REPLY} > $_ipsvpn_config_dir/username
+  echo "User name ${REPLY} added"
   echo -e "\nSecret Key Added."
   exit
 }
@@ -279,7 +283,7 @@ function ipsvpn_setup() {
     exit 1
   fi
 
-  if [ ! -f $_ipsvpn_config_dir/vpns ]; then
+  if [ ! -f $_ipsvpn_config_dir/username ]; then
     _ipsvpn_init
   fi
 
