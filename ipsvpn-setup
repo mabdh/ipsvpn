@@ -1,0 +1,352 @@
+#!/bin/bash
+# kv-bash library https://github.com/damphat/kv-bash
+####
+# Avoiding dependencies, embeding kv-bash here
+# ABOUT kv-bash:
+#    key/value dabatase
+#    database store in HOME directory
+#    each user has 1 database
+#    imports 5 bash functions via ```$ source kv-bash```
+#
+# Author: damphat
+# Version: 0.1
+# Requirements: unix-like environement, no dependencies
+#
+# USAGE:
+#    source ./kv-bash        # import kv-bash functions
+#    kvset <key> <value>     # assign value to key
+#    kvget <key>             # get value of key
+#    kvdel <key>             # kvdelete by key
+#    kvkeys                  # get all keys
+#    kvlist                  # list all current key/value pairs
+#    kvclear                 # clear database
+#
+# EXAMPLES:
+#    $ source ./kv-bash
+#    $ kvset user mr.bob
+#    $ kvset pass abc@123
+#    $ kvlist
+#      user mr.bob
+#      pass abc@123
+#    $ kvget user
+#      mr.bob
+#    $ kvget pass
+#      abc@123
+#    $ kvdel pass
+#    $ kvget pass
+#
+#    $ kvclear
+
+########################
+# CONSTANTS
+########################
+
+KV_USER_DIR="$HOME/.config/ipsvpn"
+
+########################
+# LOCAL FUNCTIONS
+########################
+
+# print to stderr, red color
+kv_echo_err() {
+    echo -e "\e[01;31m$@\e[0m" >&2
+}
+
+# Usage: kv_echo_err_box <err-msg> <function-name>
+kv_echo_err_box() {
+    kv_echo_err "  +-------------------------------+"
+    kv_echo_err "  | ERROR: $1"
+    kv_echo_err "  | function: $2"
+    kv_echo_err "  +-------------------------------+"
+}
+
+# Usage: kv_validate_key <key>
+kv_validate_key() {
+    [[ "$1" =~ ^[0-9a-zA-Z._:-]+$  ]]
+}
+
+########################
+# ENSURE THIS-FILE IS CALL BY 'source ./kv-bash'
+########################
+
+# [[ "${BASH_SOURCE[0]}" != "${0}" ]] || {
+#   kv_echo_err "  +------------------------------------------------+"
+#   kv_echo_err "  | FALTAL ERROR: wrong usage :(                   |"
+#   kv_echo_err "  | You should use this via source                 |"
+#   kv_echo_err "  |     $ source ./kv-bash                         |"
+#   kv_echo_err "  |                                                |"
+#   kv_echo_err "  | Examples:                                      |"
+#   kv_echo_err "  |     $ source ./kv-bash                         |"
+#   kv_echo_err "  |     $ kvset user mr.bob                        |"
+#   kv_echo_err "  |     $ kvset pass abc@123                       |"
+#   kv_echo_err "  |     $ kvlist                                   |"
+#   kv_echo_err "  |       user mr.bob                              |"
+#   kv_echo_err "  |       pass abc@123                             |"
+#   kv_echo_err "  |     $ kvget user                               |"
+#   kv_echo_err "  |       mr.bob                                   |"
+#   kv_echo_err "  |     $ kvget pass                               |"
+#   kv_echo_err "  |       abc@123                                  |"
+#   kv_echo_err "  |     $ kvdel pass                               |"
+#   kv_echo_err "  |     $ kvget pass                               |"
+#   kv_echo_err "  |                                                |"
+#   kv_echo_err "  |     $ kvclear                                  |"
+#   kv_echo_err "  +------------------------------------------------+"
+#   exit 1
+# }
+
+########################
+# PUBLIC FUNCTIONS
+########################
+
+# Usage: kvget <key>
+kvget() {
+    key="$1"
+    kv_validate_key "$key" || {
+        kv_echo_err_box 'invalid param "key"' 'kvget()'
+        return 1
+    }
+    VALUE="$([ -f "$KV_USER_DIR/$key" ] && cat "$KV_USER_DIR/$key")"
+    echo "$VALUE"
+
+    [ "$VALUE" != "" ]
+}
+
+# Usage: kvset <key> [value]
+kvset() {
+    key="$1"
+    value="$2"
+    kv_validate_key "$key" || {
+        kv_echo_err_box 'invalid param "key"' 'kvset()'
+        return 1
+    }
+    test -d "$KV_USER_DIR" || mkdir "$KV_USER_DIR"
+    echo "$value" > "$KV_USER_DIR/$key"
+}
+
+# Usage: kvdel <key>
+kvdel() {
+    key="$1"
+    kv_validate_key "$key" || {
+        kv_echo_err_box 'invalid param "key"' 'kvdel()'
+        return 1
+    }
+    test -f "$KV_USER_DIR/$key" && rm -f "$KV_USER_DIR/$key"
+}
+
+# list all key/value pairs to stdout
+# Usage: kvlist
+kvlist() {
+    for i in "$KV_USER_DIR/"*; do
+        if [ -f "$i" ]; then
+            key="$(basename "$i")"
+            echo "$key" "$(kvget "$key")"
+        fi
+    done
+}
+
+# list all keys
+kvkeys() {
+    for i in "$KV_USER_DIR/"*; do
+        if [ -f "$i" ]; then
+            key="$(basename "$i")"
+            echo "$key"
+        fi
+    done
+}
+
+# clear all key/value pairs in database
+# Usage: kvclear
+kvclear() {
+    rm -rf "$KV_USER_DIR"
+}
+
+####
+
+CONFIG_FILE_PATH=~/.ipsvpn.mobileconfig
+
+_ipsvpn_config_dir=~/.config/ipsvpn
+_ipsvpn_project_dir=~/.ipsvpn
+_ipsec_conf_company=/usr/local/etc/ipsec.conf.company
+
+function _cat_conf(){
+cat << EOF
+conn company
+  keyexchange=ikev2
+  type=tunnel
+  ike=aes128-sha256-modp3072,aes256-sha1-modp1024,3des-sha1-modp1024!
+  esp=aes128-sha256,aes256-sha1,3des-sha1!
+  forceencaps=yes
+  lifetime=1800
+  rightsendcert=always
+  rightsubnet=0.0.0.0/0
+  #rightsubnet=%dynamic
+  #rightsourceip=%config4
+  #rightfirewall=yes
+  rightauth=pubkey
+  left=%defaultroute
+  #leftsubnet=%dynamic
+  leftsourceip=%config4
+  leftid=any
+  leftauth=eap-mschapv2
+  eap_identity=muhammad.abduh
+  auto=add
+include /usr/local/etc/ipsec.conf.company
+EOF
+}
+
+function _add_vpn(){
+  vpnlist=$(cat $CONFIG_FILE_PATH | /usr/bin/awk '{print $0;}' | grep -A1 RemoteAddress | grep string | cut -f 2 -d\> | cut -f 1 -d\< | tr ' ' _ | sed 's/^[[:space:]]//g')
+  #  >$_ips_vpn_config_dir/vpns
+
+  for name in $vpnlist
+  do
+      ./ipsvpn/add-vpn.sh $name $_ipsec_conf_company
+  done
+}
+
+function _replace_vpn(){
+  rm $_ipsec_conf_company
+  touch $_ipsec_conf_company
+  _add_vpn
+}
+
+function _ipsvpn_init() {
+  # echo -n "Add your Secret Key: "
+  # read -s secret_key
+  # echo "**********"
+
+  # echo 'Storing secret in keychain...'
+  # old_secret=~/.config/ipsvpn/secret
+  # [ -f "$old_secret" ] && rm "$old_secret"
+  # security delete-generic-password -a ipsvpn -s ipsvpn &>/dev/null
+  # security add-generic-password -a ipsvpn -p "$secret_key" -s ipsvpn
+
+  # config files & folder
+  mkdir -p "$(brew --prefix)/var/lib/strongswan" && touch "$(brew --prefix)/var/lib/strongswan/ipsec.secrets.inc"
+  
+  if ! $(grep -Fxq "conn company" "$(brew --prefix)/etc/ipsec.conf")
+  then
+    _cat_conf | tee -a "$(brew --prefix)/etc/ipsec.conf"
+  fi
+
+  if ! $(grep -Fxq "include /usr/local/var/lib/strongswan/ipsec.secrets.inc" "$(brew --prefix)/etc/ipsec.secrets")
+  then
+    echo "include /usr/local/var/lib/strongswan/ipsec.secrets.inc" | tee -a "$(brew --prefix)/etc/ipsec.secrets"
+  fi
+
+
+  # _ipsvpn_refresh
+
+  echo -e "\nSecret Key Added."
+  exit
+}
+
+# function _ipsvpn_refresh() {
+#   local backup_file=/tmp/ipsvpn-$(date +%-H-%M-%S-%F)
+#   [ -f $_ipsvpn_config_dir/vpns ] && cp $_ipsvpn_config_dir/vpns $backup_file
+#   vpnlist=$(cat $CONFIG_FILE_PATH | /usr/bin/awk '{print $0;}' | grep -A1 RemoteAddress | grep string | cut -f 2 -d\> | cut -f 1 -d\< | tr ' ' _ | sed 's/^[[:space:]]//g')
+#   #  >$_ipsvpn_config_dir/vpns
+#   echo $vpnlist
+
+#   echo "Storing the VPN list..."
+#   if [ -f $backup_file ]; then
+#     echo -e "\nDiff:\n$(diff -y $backup_file $_ipsvpn_config_dir/vpns)"
+#   else
+#     echo -e "\nVPN List:"
+#     cat $_ipsvpn_config_dir/vpns | nl
+#   fi
+# }
+
+function _ipsvpn_usage() {
+cat <<EOF
+
+USAGE:
+
+ipsvpn - Connect IPSec VPN.
+
+-i    - Initialize ips vpn. Stores the TOTP secret and VPN list.
+-s    - Set key value of alias vpn name, 'ipsvpn-setup -s v1 my-internet-vpn'.
+-l    - List all key value vpn name and its alias.
+-c    - Clear all kv pairs.
+-u    - Get default username to connect vpn.
+-y    - Set default username to connect vpn, 'ipsvpn-setup -y user'.
+-h    - Show this help.
+EOF
+}
+
+function _ipsvpn_get_totp() {
+  secret_key=$1
+  password=$(oathtool --totp --base32 $secret_key)
+  return 0
+}
+
+function _ipsvpn_set_alias(){
+  key=$1
+  value=$2
+  kvset $key $value
+}
+
+function ipsvpn_setup() {
+  local OPTIND
+  local autofill="true"
+  mkdir -p $_ipsvpn_config_dir
+
+  if [ ! -f $CONFIG_FILE_PATH ]; then
+    echo Download your .mobileconfig and
+    echo save it as $CONFIG_FILE_PATH.
+    echo Eg. cp ~/Downloads/email@address.com.mobileconfig $CONFIG_FILE_PATH
+    exit 1
+  fi
+
+  # if [ ! -f $_ipsvpn_config_dir/vpns ]; then
+  #   _ipsvpn_init
+  # fi
+
+  while getopts "ihsluyr" opt; do
+    case $opt in
+    h)
+        _ipsvpn_usage
+        return 0
+        ;;
+    s)
+        kvset $2 $3
+        return 0
+        ;;    
+    l)
+        kvlist
+        return 0
+        ;;    
+    r)
+        kvclear
+        return 0
+        ;;
+    u)
+        cat $_ipsvpn_config_dir/username
+        return 0
+        ;;
+    y)
+        echo $2 > $_ipsvpn_config_dir/username
+        return 0
+        ;;
+    i)
+      _ipsvpn_init
+      return 0
+      ;;
+    \?)
+      echo "Invalid Option: -$OPTARG."
+      _ipsvpn_usage
+      return 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument."
+      _ipsvpn_usage
+      return 1
+      ;;
+    esac
+  done
+
+ _ipsvpn_usage
+
+}
+
+ipsvpn_setup "$@"
