@@ -194,16 +194,6 @@ include /usr/local/etc/ipsec.conf.company
 EOF
 }
 
-function _add_vpn(){
-  vpnlist=$(cat $CONFIG_FILE_PATH | /usr/bin/awk '{print $0;}' | grep -A1 RemoteAddress | grep string | cut -f 2 -d\> | cut -f 1 -d\< | tr ' ' _ | sed 's/^[[:space:]]//g')
-  #  >$_ips_vpn_config_dir/vpns
-
-  for name in $vpnlist
-  do
-      ./ipsvpn/add-vpn.sh $name $_ipsec_conf_company
-  done
-}
-
 function _replace_vpn(){
   rm $_ipsec_conf_company
   touch $_ipsec_conf_company
@@ -243,12 +233,40 @@ function _ipsvpn_init() {
     wget https://letsencrypt.org/certs/isrgrootx1.pem.txt -P "$(brew --prefix)/etc/ipsec.d/cacerts"
   fi
 
+  # if [ ! -f $_ipsec_conf_company  ]; then
+  #   touch _ipsec_conf_company
+  # fi
+  
   sudo ipsec rereadcacerts
   sudo ipsec update
+
+  _ipsvpn_refresh
 
   echo -e "\nSecret Key Added."
   exit
 }
+
+function _ipsvpn_refresh() {
+  local backup_file=/tmp/ipsvpn-$(date +%-H-%M-%S-%F)
+  [ -f $_ipsvpn_config_dir/vpns ] && cp $_ipsvpn_config_dir/vpns $backup_file
+  vpnlist=$(cat $CONFIG_FILE_PATH | /usr/bin/awk '{print $0;}' | grep -A1 RemoteAddress | grep string | cut -f 2 -d\> | cut -f 1 -d\< | tr ' ' _ | sed 's/^[[:space:]]//g')
+  
+
+  echo "" > $_ipsec_conf_company
+  for name in $vpnlist
+  do
+    VPNHOST=$name
+    VPNNAME=`echo $name|cut -f1 -d.`
+cat >>$_ipsec_conf_company <<EOL
+conn ${VPNNAME}
+  also=company
+  right=${VPNHOST}
+  rightid=${VPNHOST}
+
+EOL
+  done
+}
+
 
 function _ipsvpn_usage() {
 cat <<EOF
@@ -294,7 +312,7 @@ function ipsvpn_setup() {
   if [ ! -f $_ipsvpn_config_dir/username ]; then
     echo -n "Add your user name VPN: ";
     read;
-    echo ${REPLY} > $_ipsvpn_config_dir/username
+    echo ${REPLY} > "$_ipsvpn_config_dir/username"
     echo "User name ${REPLY} added"
     _ipsvpn_init
   fi
@@ -308,7 +326,11 @@ function ipsvpn_setup() {
     s)
         kvset $2 $3
         return 0
-        ;;    
+        ;;
+    r)
+        _ipsvpn_refresh
+        return 0
+        ;;
     l)
         kvlist
         return 0
